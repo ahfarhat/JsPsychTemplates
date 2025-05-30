@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spatial N-Back Task</title>
+    <script src="https://unpkg.com/jspsych@8.2.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+    <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        .task-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .grid-container {
+            display: grid;
+            gap: 5px;
+            justify-content: center;
+            align-content: center;
+        }
+        .grid-cell {
+            border: 2px solid #333;
+            background-color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .grid-cell.active {
+            background-color: #ff0000;
+        }
+        .feedback {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 10;
+        }
+        .correct { color: green; }
+        .incorrect { color: red; }
+        .progress-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            text-align: center;
+        }
+        .instructions {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // ===========================================
+        // CONFIGURATION VARIABLES - EASY TO MODIFY
+        // ===========================================
+        
+        const CONFIG = {
+            // Grid settings
+            GRID_ROWS: 3,
+            GRID_COLS: 3,
+            GRID_CELL_SIZE: 100, // pixels
+            
+            // Task parameters
+            N_BACK_LEVEL: 1,        // n-back level (1, 2, 3, etc.)
+            TOTAL_TRIALS: 6,       // total number of trials
+            TARGET_PERCENTAGE: 30,  // percentage of trials that should be targets
+            
+            // Timing parameters (in milliseconds)
+            STIMULUS_DURATION: 500,     // how long stimulus is shown
+            INTER_STIMULUS_INTERVAL: 50000, // time between stimuli
+            FEEDBACK_DURATION: 1000,    // how long feedback is shown
+            
+            // Response settings
+            TARGET_KEY: ' ',        // spacebar for target response
+            SHOW_FEEDBACK: true,    // show trial-by-trial feedback
+            
+            // Instructions
+            PRACTICE_TRIALS: 3,    // number of practice trials
+            SHOW_PROGRESS: true     // show trial progress
+        };
+        
+        // ===========================================  
+        // EXPERIMENT LOGIC
+        // ===========================================
+        
+        let jsPsych = initJsPsych({
+            on_finish: function() {
+                jsPsych.data.displayData();
+            }
+        });
+        
+        // Generate grid HTML
+        function createGrid(activeCell = null, showProgress = false, trialInfo = null) {
+            const totalCells = CONFIG.GRID_ROWS * CONFIG.GRID_COLS;
+            let html = `<div class="task-container">`;
+            
+            // Grid
+            html += `<div class="grid-container" style="
+                grid-template-rows: repeat(${CONFIG.GRID_ROWS}, ${CONFIG.GRID_CELL_SIZE}px);
+                grid-template-columns: repeat(${CONFIG.GRID_COLS}, ${CONFIG.GRID_CELL_SIZE}px);
+            ">`;
+            
+            for (let i = 0; i < totalCells; i++) {
+                const isActive = activeCell === i ? 'active' : '';
+                html += `<div class="grid-cell ${isActive}"></div>`;
+            }
+            
+            html += '</div>';
+            
+            // Progress info (positioned at bottom)
+            if (showProgress && trialInfo) {
+                const phase = trialInfo.isPractice ? 'Practice' : 'Main Task';
+                html += `<div class="progress-info">${phase} - Trial ${trialInfo.trial}</div>`;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Generate trial sequence
+        function generateTrialSequence(numTrials, targetPercentage, nBack) {
+            const sequence = [];
+            const totalCells = CONFIG.GRID_ROWS * CONFIG.GRID_COLS;
+            const numTargets = Math.floor(numTrials * (targetPercentage / 100));
+            
+            // Generate initial n trials (cannot be targets)
+            for (let i = 0; i < nBack; i++) {
+                sequence.push({
+                    position: Math.floor(Math.random() * totalCells),
+                    isTarget: false,
+                    trial: i + 1
+                });
+            }
+            
+            // Generate remaining trials
+            let targetsPlaced = 0;
+            for (let i = nBack; i < numTrials; i++) {
+                let position;
+                let isTarget = false;
+                
+                // Decide if this should be a target
+                if (targetsPlaced < numTargets && Math.random() < 0.5) {
+                    // Make it a target by using the same position as n trials back
+                    position = sequence[i - nBack].position;
+                    isTarget = true;
+                    targetsPlaced++;
+                } else {
+                    // Make it a non-target by choosing a different position
+                    do {
+                        position = Math.floor(Math.random() * totalCells);
+                    } while (position === sequence[i - nBack].position);
+                }
+                
+                sequence.push({
+                    position: position,
+                    isTarget: isTarget,
+                    trial: i + 1
+                });
+            }
+            
+            return sequence;
+        }
+        
+        // Create trial
+        function createTrial(trialData, isPractice = false) {
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function() {
+                    return createGrid(trialData.position, CONFIG.SHOW_PROGRESS, {
+                        trial: trialData.trial,
+                        isPractice: isPractice
+                    });
+                },
+                choices: [CONFIG.TARGET_KEY],
+                trial_duration: CONFIG.STIMULUS_DURATION,
+                response_ends_trial: false,
+                data: {
+                    position: trialData.position,
+                    is_target: trialData.isTarget,
+                    trial_number: trialData.trial,
+                    n_back_level: CONFIG.N_BACK_LEVEL,
+                    is_practice: isPractice
+                },
+                on_finish: function(data) {
+                    // Score the response
+                    const responded = data.response !== null;
+                    const correctResponse = (data.is_target && responded) || (!data.is_target && !responded);
+                    
+                    data.correct = correctResponse;
+                    data.hit = data.is_target && responded;
+                    data.miss = data.is_target && !responded;
+                    data.false_alarm = !data.is_target && responded;
+                    data.correct_rejection = !data.is_target && !responded;
+                }
+            };
+        }
+        
+        // Create feedback trial
+        function createFeedbackTrial() {
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function() {
+                    const lastTrial = jsPsych.data.get().last(1).values()[0];
+                    const feedbackText = lastTrial.correct ? 'Correct!' : 'Incorrect';
+                    const feedbackClass = lastTrial.correct ? 'correct' : 'incorrect';
+                    
+                    let html = '<div class="task-container">';
+                    html += `<div class="feedback ${feedbackClass}">${feedbackText}</div>`;
+                    html += `<div class="grid-container" style="
+                        grid-template-rows: repeat(${CONFIG.GRID_ROWS}, ${CONFIG.GRID_CELL_SIZE}px);
+                        grid-template-columns: repeat(${CONFIG.GRID_COLS}, ${CONFIG.GRID_CELL_SIZE}px);
+                    ">`;
+                    
+                    // Empty grid
+                    const totalCells = CONFIG.GRID_ROWS * CONFIG.GRID_COLS;
+                    for (let i = 0; i < totalCells; i++) {
+                        html += '<div class="grid-cell"></div>';
+                    }
+                    
+                    html += '</div></div>';
+                    return html;
+                },
+                choices: "NO_KEYS",
+                trial_duration: CONFIG.FEEDBACK_DURATION
+            };
+        }
+        
+        // Create inter-stimulus interval
+        function createISI() {
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: createGrid(), // Empty grid
+                choices: "NO_KEYS",
+                trial_duration: CONFIG.INTER_STIMULUS_INTERVAL - CONFIG.STIMULUS_DURATION - 
+                                (CONFIG.SHOW_FEEDBACK ? CONFIG.FEEDBACK_DURATION : 0)
+            };
+        }
+        
+        // ===========================================
+        // EXPERIMENT TIMELINE
+        // ===========================================
+        
+        let timeline = [];
+        
+        // Fullscreen
+        timeline.push({
+            type: jsPsychFullscreen,
+            fullscreen_mode: true
+        });
+        
+        // Instructions
+        timeline.push({
+            type: jsPsychInstructions,
+            pages: [
+                `<div class="instructions">
+                    <h2>Welcome to the Spatial ${CONFIG.N_BACK_LEVEL}-Back Task</h2>
+                    <p>In this task, you will see red squares appear in different positions on a ${CONFIG.GRID_ROWS}x${CONFIG.GRID_COLS} grid.</p>
+                    <p>Your job is to press the <strong>SPACEBAR</strong> whenever the current red square appears in the same position as the one that appeared <strong>${CONFIG.N_BACK_LEVEL} trials ago</strong>.</p>
+                    <p>For example, if you're doing a 2-back task, you should press SPACEBAR when the current square is in the same position as the square from 2 trials before.</p>
+                </div>`,
+                `<div class="instructions">
+                    <h3>Task Details:</h3>
+                    <ul>
+                        <li>Each red square will appear for ${CONFIG.STIMULUS_DURATION/1000} seconds</li>
+                        <li>You have ${CONFIG.STIMULUS_DURATION/1000} seconds to respond</li>
+                        <li>Press <strong>SPACEBAR</strong> only when you detect a ${CONFIG.N_BACK_LEVEL}-back match</li>
+                        <li>Do not respond if it's not a match</li>
+                        ${CONFIG.SHOW_FEEDBACK ? '<li>You will receive feedback after each trial</li>' : ''}
+                    </ul>
+                    <p>Try to be both fast and accurate!</p>
+                </div>`,
+                `<div class="instructions">
+                    <h3>Let's Practice!</h3>
+                    <p>We'll start with ${CONFIG.PRACTICE_TRIALS} practice trials so you can get familiar with the task.</p>
+                    <p>Remember: Press SPACEBAR when the current position matches the position from ${CONFIG.N_BACK_LEVEL} trials back.</p>
+                    <p>Click 'Next' when you're ready to begin the practice session.</p>
+                </div>`
+            ],
+            show_clickable_nav: true
+        });
+        
+        // Practice trials
+        const practiceSequence = generateTrialSequence(CONFIG.PRACTICE_TRIALS, CONFIG.TARGET_PERCENTAGE, CONFIG.N_BACK_LEVEL);
+        
+        for (let i = 0; i < practiceSequence.length; i++) {
+            timeline.push(createTrial(practiceSequence[i], true));
+            if (CONFIG.SHOW_FEEDBACK) {
+                timeline.push(createFeedbackTrial());
+            }
+            timeline.push(createISI());
+        }
+        
+        // Transition to main task
+        timeline.push({
+            type: jsPsychInstructions,
+            pages: [
+                `<div class="instructions">
+                    <h3>Practice Complete!</h3>
+                    <p>Great job! Now you'll begin the main task.</p>
+                    <p>You'll complete ${CONFIG.TOTAL_TRIALS} trials. The same rules apply:</p>
+                    <ul>
+                        <li>Press <strong>SPACEBAR</strong> when the current position matches the position from ${CONFIG.N_BACK_LEVEL} trials back</li>
+                        <li>Stay focused and try to be accurate</li>
+                    </ul>
+                    <p>Click 'Next' to begin the main task.</p>
+                </div>`
+            ],
+            show_clickable_nav: true
+        });
+        
+        // Main task trials
+        const mainSequence = generateTrialSequence(CONFIG.TOTAL_TRIALS, CONFIG.TARGET_PERCENTAGE, CONFIG.N_BACK_LEVEL);
+        
+        for (let i = 0; i < mainSequence.length; i++) {
+            timeline.push(createTrial(mainSequence[i], false));
+            if (CONFIG.SHOW_FEEDBACK) {
+                timeline.push(createFeedbackTrial());
+            }
+            timeline.push(createISI());
+        }
+        
+        // Final screen
+        timeline.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function() {
+                const data = jsPsych.data.get().filter({is_practice: false});
+                const accuracy = Math.round(data.select('correct').mean() * 100);
+                const hits = data.filter({hit: true}).count();
+                const misses = data.filter({miss: true}).count();
+                const falseAlarms = data.filter({false_alarm: true}).count();
+                const correctRejections = data.filter({correct_rejection: true}).count();
+                
+                return `<div class="instructions">
+                    <h2>Task Complete!</h2>
+                    <h3>Your Performance:</h3>
+                    <p><strong>Overall Accuracy:</strong> ${accuracy}%</p>
+                    <p><strong>Hits:</strong> ${hits} (correct target detections)</p>
+                    <p><strong>Misses:</strong> ${misses} (missed targets)</p>
+                    <p><strong>False Alarms:</strong> ${falseAlarms} (incorrect responses)</p>
+                    <p><strong>Correct Rejections:</strong> ${correctRejections} (correct non-responses)</p>
+                    <p>Thank you for participating!</p>
+                    <p>Press any key to finish.</p>
+                </div>`;
+            },
+            choices: "ALL_KEYS"
+        });
+        
+        // Exit fullscreen
+        timeline.push({
+            type: jsPsychFullscreen,
+            fullscreen_mode: false
+        });
+        
+        // Run the experiment
+        jsPsych.run(timeline);
+    </script>
+</body>
+</html>

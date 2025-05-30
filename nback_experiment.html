@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>N-back Working Memory Task</title>
+    <script src="https://unpkg.com/jspsych@8.2.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+    <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        .jspsych-display-element {
+            font-size: 18px;
+        }
+        .stimulus {
+            font-size: 72px;
+            font-weight: bold;
+            color: #333;
+        }
+        .fixation {
+            font-size: 60px;
+            font-weight: bold;
+            color: #666;
+        }
+        .instructions {
+            font-size: 20px;
+            line-height: 1.5;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .performance-feedback {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body></body>
+<script>
+    // Initialize jsPsych
+    const jsPsych = initJsPsych({
+        on_finish: function() {
+            jsPsych.data.displayData();
+        }
+    });
+
+    // Configuration variables
+    const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+    const N_LEVELS = [28]; // Different n-back levels
+    const TRIALS_PER_BLOCK = 3; // Number of trials per block for each n-back level
+    const PRACTICE_TRIALS = 3/*Math.max(...N_LEVELS)*/; //technically can be anything but the highest n-level is recommended 
+    const TARGET_PROBABILITY = 0.33; // 33% of trials are targets
+    const STIMULUS_DURATION = 500; // 500ms
+    const ISI_DURATION = 2000; // 2000ms inter-stimulus interval
+    
+    // Generate stimulus sequence for n-back task
+    function generateNBackSequence(nLevel, numTrials, targetProb) {
+        let sequence = [];
+        let targets = [];
+        
+        // Generate initial n stimuli (cannot be targets)
+        for (let i = 0; i < nLevel; i++) {
+            sequence.push({
+                stimulus: LETTERS[Math.floor(Math.random() * LETTERS.length)],
+                isTarget: false,
+                position: i
+            });
+            targets.push(false);
+        }
+        
+        // Generate remaining stimuli
+        for (let i = nLevel; i < numTrials; i++) {
+            let isTarget = Math.random() < targetProb;
+            let stimulus;
+            
+            if (isTarget) {
+                // Make it match the stimulus n positions back
+                stimulus = sequence[i - nLevel].stimulus;
+            } else {
+                // Make sure it doesn't match the stimulus n positions back
+                let availableLetters = LETTERS.filter(letter => letter !== sequence[i - nLevel].stimulus);
+                stimulus = availableLetters[Math.floor(Math.random() * availableLetters.length)];
+            }
+            
+            sequence.push({
+                stimulus: stimulus,
+                isTarget: isTarget,
+                position: i
+            });
+            targets.push(isTarget);
+        }
+        
+        return sequence;
+    }
+    
+    // Create n-back trial
+    function createNBackTrial(stimulusData, nLevel) {
+        return {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `<div class="stimulus">${stimulusData.stimulus}</div>`,
+            choices: ['f', 'j'],
+            trial_duration: STIMULUS_DURATION + ISI_DURATION,
+            stimulus_duration: STIMULUS_DURATION,
+            response_ends_trial: false,
+            post_trial_gap: 0,
+            data: {
+                task: 'nback',
+                stimulus: stimulusData.stimulus,
+                correct_response: stimulusData.isTarget ? 'j' : 'f',
+                is_target: stimulusData.isTarget,
+                n_level: nLevel,
+                position: stimulusData.position
+            },
+            on_finish: function(data) {
+                // Score the response
+                if (data.response === null) {
+                    data.correct = false;
+                    data.response_type = 'no_response';
+                } else if (data.response === data.correct_response) {
+                    data.correct = true;
+                    data.response_type = data.is_target ? 'hit' : 'correct_rejection';
+                } else {
+                    data.correct = false;
+                    data.response_type = data.is_target ? 'miss' : 'false_alarm';
+                }
+            }
+        };
+    }
+    
+    // Simple z-score calculation for d-prime
+    function approximateZScore(p) {
+        if (p >= 0.9999) return 3.09;
+        if (p <= 0.0001) return -3.09;
+        
+        // Approximation using rational function
+        const c0 = 2.515517;
+        const c1 = 0.802853;
+        const c2 = 0.010328;
+        const d1 = 1.432788;
+        const d2 = 0.189269;
+        const d3 = 0.001308;
+        
+        if (p > 0.5) {
+            p = 1 - p;
+            const t = Math.sqrt(-2 * Math.log(p));
+            return (t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t));
+        } else {
+            const t = Math.sqrt(-2 * Math.log(p));
+            return -(t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t));
+        }
+    }
+    
+    // Calculate d-prime
+    function calculateDPrime(hitRate, falseAlarmRate) {
+        // Adjust extreme values
+        if (hitRate === 1) hitRate = 0.99;
+        if (hitRate === 0) hitRate = 0.01;
+        if (falseAlarmRate === 1) falseAlarmRate = 0.99;
+        if (falseAlarmRate === 0) falseAlarmRate = 0.01;
+        
+        const zHit = approximateZScore(hitRate);
+        const zFA = approximateZScore(falseAlarmRate);
+        
+        return zHit - zFA;
+    }
+    
+    // Welcome screen
+    const welcome = {
+        type: jsPsychInstructions,
+        pages: [
+            `<div class="instructions">
+                <h1>Welcome to the N-back Working Memory Task</h1>
+                <p>In this experiment, you will be testing your working memory using the N-back task.</p>
+                <p>You will see a sequence of letters appear on the screen one at a time.</p>
+                <p>Your job is to decide whether each letter matches the letter that appeared <strong>N positions back</strong> in the sequence.</p>
+                <p>Press <strong>SPACE</strong> to continue.</p>
+            </div>`
+        ],
+        key_forward: ' ',
+        show_clickable_nav: false
+    };
+    
+    // Instructions for each n-back level
+    function createInstructions(nLevel) {
+        let instructions = '';
+        if (nLevel === 1) {
+            instructions = `
+                <h2>1-Back Task Instructions</h2>
+                <p>You will see letters appear one at a time on the screen.</p>
+                <p>Press <strong>J</strong> if the current letter is the SAME as the letter that appeared <strong>1 position back</strong> (the previous letter).</p>
+                <p>Press <strong>F</strong> if the current letter is DIFFERENT from the letter that appeared 1 position back.</p>
+                <p><strong>Example:</strong><br>
+                A → B → B<br>
+                When you see the second B, you should press J because it matches the previous letter (B).</p>
+            `;
+        } else {
+            instructions = `
+                <h2>${nLevel}-Back Task Instructions</h2>
+                <p>You will see letters appear one at a time on the screen.</p>
+                <p>Press <strong>J</strong> if the current letter is the SAME as the letter that appeared <strong>${nLevel} positions back</strong>.</p>
+                <p>Press <strong>F</strong> if the current letter is DIFFERENT from the letter that appeared ${nLevel} positions back.</p>
+                <p><strong>Example:</strong><br>
+                ${
+                    (() => {
+                        // Generate a sequence for the example
+                        let seq = ['A'];
+                        // Fill with sequential letters for nLevel, ensuring the first letter ONLY repeats at the end
+                        let LETTERSnoA = LETTERS.slice(1); // Exclude 'A' for variety
+                        for (let i = 0; i < nLevel; i++) {
+                            seq.push(LETTERSnoA[i % LETTERSnoA.length]);
+                        }
+                        // Repeat the first letter at the end to create a match
+                        seq.push(seq[0]);
+                        // Format as "A → B → ... → A"
+                        return seq.join(' &rarr; ');
+                    })()
+                }<br>
+                When you see the second A, you should press J because it matches the letter from ${nLevel} positions back (A).</p>
+            `;
+        }
+        
+        return {
+            type: jsPsychInstructions,
+            pages: [
+                `<div class="instructions">
+                    ${instructions}
+                    <p><strong>Remember:</strong></p>
+                    <ul>
+                        <li>Press <strong>J</strong> for MATCH (target)</li>
+                        <li>Press <strong>F</strong> for NO MATCH (non-target)</li>
+                        <li>Respond as quickly and accurately as possible</li>
+                        <li>Each letter will appear for only 500ms</li>
+                    </ul>
+                </div>`
+            ],
+            key_forward: ' ',
+            show_clickable_nav: false
+        };
+    }
+    
+    // Practice block
+    function createPracticeBlock(nLevel) {
+        let practiceSequence = generateNBackSequence(nLevel, PRACTICE_TRIALS, TARGET_PROBABILITY);
+        let practiceTrials = [];
+        
+        // Add ready screen
+        practiceTrials.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `<div class="instructions">
+                <h3>Practice ${nLevel}-Back Task</h3>
+                <p>Let's practice with ${PRACTICE_TRIALS} trials.</p>
+                <p>Remember: Press <strong>J</strong> for match, <strong>F</strong> for no match.</p>
+                <p>Press <strong>SPACE</strong> when ready to begin.</p>
+            </div>`,
+            choices: [' ']
+        });
+        
+        // Add fixation cross
+        practiceTrials.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<div class="fixation">+</div>',
+            choices: 'NO_KEYS',
+            trial_duration: 1000
+        });
+        
+        // Add practice trials
+        practiceSequence.forEach(stimData => {
+            practiceTrials.push(createNBackTrial(stimData, nLevel));
+        });
+        
+        // Add practice feedback
+        practiceTrials.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function() {
+                const trials = jsPsych.data.get().filter({task: 'nback', n_level: nLevel}).last(PRACTICE_TRIALS);
+                const correct = trials.filter({correct: true}).count();
+                const accuracy = Math.round((correct / PRACTICE_TRIALS) * 100);
+                
+                return `<div class="instructions">
+                    <h3>Practice Complete!</h3>
+                    <div class="performance-feedback">
+                        Practice Accuracy: ${accuracy}%
+                    </div>
+                    <p>Press <strong>SPACE</strong> to continue to the main task.</p>
+                </div>`;
+            },
+            choices: [' ']
+        });
+        
+        return practiceTrials;
+    }
+    
+    // Main experimental block
+    function createMainBlock(nLevel) {
+        let mainSequence = generateNBackSequence(nLevel, TRIALS_PER_BLOCK, TARGET_PROBABILITY);
+        let mainTrials = [];
+        
+        // Add ready screen
+        mainTrials.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `<div class="instructions">
+                <h3>Main ${nLevel}-Back Task</h3>
+                <p>Now for the real task with ${TRIALS_PER_BLOCK} trials.</p>
+                <p>Try to be as accurate and fast as possible.</p>
+                <p>Press <strong>SPACE</strong> when ready to begin.</p>
+            </div>`,
+            choices: [' ']
+        });
+        
+        // Add fixation cross
+        mainTrials.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: '<div class="fixation">+</div>',
+            choices: 'NO_KEYS',
+            trial_duration: 1000
+        });
+        
+        // Add main trials
+        mainSequence.forEach(stimData => {
+            mainTrials.push(createNBackTrial(stimData, nLevel));
+        });
+        
+        // Add block feedback
+        mainTrials.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function() {
+                const allData = jsPsych.data.get().filter({task: 'nback'});
+                const blockData = allData.filter({n_level: nLevel}).last(TRIALS_PER_BLOCK);
+                
+                const hits = blockData.filter({response_type: 'hit'}).count();
+                const misses = blockData.filter({response_type: 'miss'}).count();
+                const falseAlarms = blockData.filter({response_type: 'false_alarm'}).count();
+                const correctRejections = blockData.filter({response_type: 'correct_rejection'}).count();
+                
+                const totalTargets = hits + misses;
+                const totalNonTargets = falseAlarms + correctRejections;
+                const hitRate = totalTargets > 0 ? (hits / totalTargets) : 0;
+                const falseAlarmRate = totalNonTargets > 0 ? (falseAlarms / totalNonTargets) : 0;
+                const accuracy = ((hits + correctRejections) / TRIALS_PER_BLOCK);
+                const dPrime = calculateDPrime(hitRate, falseAlarmRate);
+                
+                const avgRT = blockData.filter({correct: true}).select('rt').mean();
+                
+                return `<div class="instructions">
+                    <h3>${nLevel}-Back Task Complete!</h3>
+                    <div class="performance-feedback">
+                        <p>Accuracy: ${Math.round(accuracy * 100)}%</p>
+                        <p>Hit Rate: ${Math.round(hitRate * 100)}%</p>
+                        <p>False Alarm Rate: ${Math.round(falseAlarmRate * 100)}%</p>
+                        <p>Sensitivity (d'): ${dPrime.toFixed(2)}</p>
+                        <p>Average Response Time: ${Math.round(avgRT)}ms</p>
+                    </div>
+                    <p>Press <strong>SPACE</strong> to continue.</p>
+                </div>`;
+            },
+            choices: [' ']
+        });
+        
+        return mainTrials;
+    }
+    
+    // Create timeline
+    let timeline = [];
+    
+    // Add welcome
+    timeline.push(welcome);
+    
+    // Add each n-back level
+    N_LEVELS.forEach(nLevel => {
+        timeline.push(createInstructions(nLevel));
+        timeline = timeline.concat(createPracticeBlock(nLevel));
+        timeline = timeline.concat(createMainBlock(nLevel));
+    });
+    
+    // Final summary
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            const allData = jsPsych.data.get().filter({task: 'nback'});
+            let summary = '';
+            
+            N_LEVELS.forEach(nLevel => {
+                const levelData = allData.filter({n_level: nLevel});
+                const mainData = levelData.last(TRIALS_PER_BLOCK);
+                
+                const hits = mainData.filter({response_type: 'hit'}).count();
+                const misses = mainData.filter({response_type: 'miss'}).count();
+                const falseAlarms = mainData.filter({response_type: 'false_alarm'}).count();
+                const correctRejections = mainData.filter({response_type: 'correct_rejection'}).count();
+                
+                const totalTargets = hits + misses;
+                const totalNonTargets = falseAlarms + correctRejections;
+                const hitRate = totalTargets > 0 ? (hits / totalTargets) : 0;
+                const falseAlarmRate = totalNonTargets > 0 ? (falseAlarms / totalNonTargets) : 0;
+                const accuracy = ((hits + correctRejections) / TRIALS_PER_BLOCK);
+                const dPrime = calculateDPrime(hitRate, falseAlarmRate);
+                
+                summary += `
+                    <h4>${nLevel}-Back Results:</h4>
+                    <p>Accuracy: ${Math.round(accuracy * 100)}% | d': ${dPrime.toFixed(2)}</p>
+                `;
+            });
+            
+            return `<div class="instructions">
+                <h2>Experiment Complete!</h2>
+                <p>Thank you for participating in the N-back working memory task.</p>
+                ${summary}
+                <p>Press <strong>SPACE</strong> to see your data.</p>
+            </div>`;
+        },
+        choices: [' ']
+    });
+    
+    // Run the experiment
+    jsPsych.run(timeline);
+</script>
+</html>
