@@ -50,6 +50,10 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         type: jspsych.ParameterType.BOOL,
         default: true,
       },
+      showFeedbackNoResponse: {
+        type: jspsych.ParameterType.BOOL,
+        default: false,
+      },
       /** Whether to show feedback border around the grid */
       show_feedback_border: {
         type: jspsych.ParameterType.BOOL,
@@ -61,7 +65,7 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         default: 500,
       },
       /** Whether to show progress indicator */
-      show_progress: {
+      progress_bar: {
         type: jspsych.ParameterType.BOOL,
         default: true,
       },
@@ -260,7 +264,7 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         ">${instructions_text}</div>`;
         
         // Progress bar (if enabled)
-        if (trial_params.show_progress) {
+        if (trial.progress_bar) {
           html += `<div id="nback-progress-container" style="
             width: 100%;
           ">`;
@@ -383,7 +387,7 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         }
 
         // Update progress
-        if (trial.show_progress) {
+        if (trial.progress_bar) {
           const progress = ((current_trial + 1) / trial.total_trials) * 100;
           document.getElementById('nback-progress-bar').style.width = progress + '%';
           document.getElementById('nback-progress-text').textContent = `Trial ${current_trial + 1} of ${trial.total_trials}`;
@@ -449,7 +453,6 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         response_times.push(null);
         accuracy.push(is_correct);
 
-        // Show feedback
         showFeedback(is_correct, null);
       }
 
@@ -457,6 +460,20 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         
         // if no feedback is shown, just proceed to next trial
         if(!trial.show_feedback && !trial.show_feedback_border) return nextTrial();
+
+        // Disable the button during feedback to prevent user interaction until the feedback is complete
+        const button = document.getElementById('nback-response-btn');
+        button.disabled = true;
+        button.style.opacity = '0.6';
+
+        //if no response and feedback for no response must not shown, match feedback speed and then proceed to next trial
+        // this makes the task's speed consistent, even if the participant does not respond
+        if(response_time === null && !trial.showFeedbackNoResponse){
+          setTimeout(() => {
+            nextTrial();
+            button.style.opacity = '1';}, trial.feedback_duration);
+          return;
+        }
         
         //initialize feedback elements
         const grid = document.getElementById('nback-grid');
@@ -475,11 +492,6 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
           }
           feedback_div.textContent = feedback_text;
           feedback_div.style.color = is_correct ? trial.correct_color : trial.incorrect_color;
-
-          // Disable button during feedback
-          const button = document.getElementById('nback-response-btn');
-          button.disabled = true;
-          button.style.opacity = '0.6';
         }
       
 
@@ -487,7 +499,6 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         setTimeout(() => {
           grid.style.border = '2px solid #000';
           feedback_div.textContent = '';
-          const button = document.getElementById('nback-response-btn');
           button.style.opacity = '1';
           nextTrial();
         }, trial.feedback_duration);
