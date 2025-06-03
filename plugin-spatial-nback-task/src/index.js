@@ -23,17 +23,17 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
       /** N-back level (how many trials back to compare) */
       n_back_level: {
         type: jspsych.ParameterType.INT,
-        default: 2,
+        default: 1,
       },
       /** Total number of trials in the task */
       total_trials: {
         type: jspsych.ParameterType.INT,
-        default: 20,
+        default: 5,
       },
       /** Percentage of trials that should be targets (0-100) */
       target_percentage: {
         type: jspsych.ParameterType.FLOAT,
-        default: 30,
+        default: 40,
       },
       /** Duration each stimulus is displayed (ms) */
       stimulus_duration: {
@@ -165,12 +165,12 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
       if (display_element) {
         createDisplay(trial);
       } else {
-      if (trial && trial.total_trials && trial.rows && trial.cols) {
-        startTrial();
-      } else {
-        console.error("Invalid trial parameters provided.");
-        display_element.innerHTML = '<p style="color: red;">Error: Invalid trial parameters.</p>';
-      }
+        if (trial && trial.total_trials && trial.rows && trial.cols) {
+          startTrial();
+        } else {
+          console.error("Invalid trial parameters provided.");
+          display_element.innerHTML = '<p style="color: red;">Error: Invalid trial parameters.</p>';
+        }
       }
 
       // Start the task
@@ -223,45 +223,157 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
       }
 
       function createDisplay(trial_params) {
-        let html = '<div id="nback-container" style="text-align: center; height: 90%; width: 70%; font-family: Arial, sans-serif;">';
+        let html = `
+          <div id="nback-container" style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            box-sizing: border-box;
+            padding: 20px;
+          ">`;
+        
+        // Combined Instructions and Progress bar container
+        const instructions_text = trial_params.instructions.replace('{n}', trial_params.n_back_level);
+        html += `<div id="nback-header" style="
+          position: absolute;
+          top: 10vh;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 80%;
+          max-width: 520px;
+          text-align: center;
+          z-index: 10;
+        ">`;
         
         // Instructions
-        const instructions_text = trial_params.instructions.replace('{n}', trial_params.n_back_level);
-        html += `<div id="nback-instructions" style="margin-bottom: 20px; font-size: 16px;">${instructions_text}</div>`;
+        html += `<div id="nback-instructions" style="
+          font-size: clamp(14px, 2vmin, 18px);
+          margin-bottom: 20px;
+        ">${instructions_text}</div>`;
         
-        // Progress bar
+        // Progress bar (if enabled)
         if (trial_params.show_progress) {
-          html += '<div id="nback-progress-container" style="margin-bottom: 20px;">';
-          html += '<div style="background-color: #e0e0e0; height: 10px; border-radius: 5px; overflow: hidden;">';
-          html += '<div id="nback-progress-bar" style="background-color: #4CAF50; height: 100%; width: 0%; transition: width 0.3s;"></div>';
+          html += `<div id="nback-progress-container" style="
+            width: 100%;
+          ">`;
+          html += `<div style="
+            background-color: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+          ">`;
+          html += `<div id="nback-progress-bar" style="
+            background-color: #4CAF50;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+          "></div>`;
           html += '</div>';
-          html += '<div id="nback-progress-text" style="font-size: 14px; margin-top: 5px;">Trial 0 of ' + trial_params.total_trials + '</div>';
+          html += `<div id="nback-progress-text" style="
+            font-size: clamp(12px, 1.5vmin, 16px);
+            margin-top: 5px;
+          ">Trial 0 of ${trial_params.total_trials}</div>`;
           html += '</div>';
         }
+        
+        html += '</div>'; // Close combined header container
 
-        // Grid with box-sizing to prevent layout shifts
-        html += '<div id="nback-grid" style="position: static; display: inline-block; border: 2px solid #000; margin-bottom: 20px; box-sizing: border-box;">';
+        // Calculate grid size to fit screen
+        const grid_size = Math.min(50, 80 / Math.max(trial_params.rows, trial_params.cols));
+        const cell_size = `${grid_size / Math.max(trial_params.rows, trial_params.cols)}vmin`;
+
+        // Grid - centered and responsive
+        html += `<div id="nback-grid" style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          border: 2px solid #000;
+          box-sizing: border-box;
+          display: inline-block;
+          z-index: 5;
+        ">`;
+        
         for (let row = 0; row < trial_params.rows; row++) {
           html += '<div style="display: flex;">';
           for (let col = 0; col < trial_params.cols; col++) {
-            html += `<div id="cell-${row}-${col}" style="width: ${trial_params.cell_size}px; height: ${trial_params.cell_size}px; border: 1px solid #ccc; background-color: white; box-sizing: border-box;"></div>`;
+            html += `<div id="cell-${row}-${col}" style="
+              width: ${cell_size};
+              height: ${cell_size};
+              border: 1px solid #ccc;
+              background-color: white;
+              box-sizing: border-box;
+              min-width: ${Math.max(40, trial_params.cell_size * 0.5)}px;
+              min-height: ${Math.max(40, trial_params.cell_size * 0.5)}px;
+            "></div>`;
           }
           html += '</div>';
         }
         html += '</div>';
 
-        // Response button
-        html += `<div><button id="nback-response-btn" style="font-size: 18px; padding: 40px 40px; background-color: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px;" disabled>${trial_params.button_text}</button></div>`;
+        // Response button - fixed position at bottom
+        html += `<div id="nback-button-container" style="
+          position: absolute;
+          bottom: 15vh;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 10;
+        ">`;
+        html += `<button id="nback-response-btn" style="
+          font-size: clamp(18px, 3vmin, 26px);
+          padding: clamp(18px, 2.5vmin, 30px) clamp(35px, 5vmin, 60px);
+          background-color: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: bold;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+          transition: all 0.2s;
+        " disabled>${trial_params.button_text}</button>`;
+        html += '</div>';
         
-        // Feedback area
-        html += '<div id="nback-feedback" style="height: 30px; font-size: 16px; font-weight: bold; margin-top: 10px;"></div>';
+        // Feedback area - fixed position
+        html += `<div id="nback-feedback" style="
+          position: absolute;
+          bottom: 8vh;
+          left: 50%;
+          transform: translateX(-50%);
+          height: 40px;
+          font-size: clamp(14px, 2vmin, 20px);
+          font-weight: bold;
+          text-align: center;
+          z-index: 10;
+          width: 80%;
+        "></div>`;
         
         html += '</div>';
         
         display_element.innerHTML = html;
 
+        // Add button hover effects
+        const button = document.getElementById('nback-response-btn');
+        button.addEventListener('mouseenter', () => {
+          if (!button.disabled) {
+            button.style.backgroundColor = '#1976D2';
+            button.style.transform = 'translateY(-2px)';
+          }
+        });
+        button.addEventListener('mouseleave', () => {
+          button.style.backgroundColor = '#2196F3';
+          button.style.transform = 'translateY(0)';
+        });
+
         // Add button event listener
-        document.getElementById('nback-response-btn').addEventListener('click', handleResponse);
+        button.addEventListener('click', handleResponse);
       }
 
       function startTrial() {
@@ -345,6 +457,7 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         
         // if no feedback is shown, just proceed to next trial
         if(!trial.show_feedback && !trial.show_feedback_border) return nextTrial();
+        
         //initialize feedback elements
         const grid = document.getElementById('nback-grid');
         const feedback_div = document.getElementById('nback-feedback');
@@ -364,7 +477,9 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
           feedback_div.style.color = is_correct ? trial.correct_color : trial.incorrect_color;
 
           // Disable button during feedback
-          document.getElementById('nback-response-btn').disabled = true;
+          const button = document.getElementById('nback-response-btn');
+          button.disabled = true;
+          button.style.opacity = '0.6';
         }
       
 
@@ -372,6 +487,8 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         setTimeout(() => {
           grid.style.border = '2px solid #000';
           feedback_div.textContent = '';
+          const button = document.getElementById('nback-response-btn');
+          button.style.opacity = '1';
           nextTrial();
         }, trial.feedback_duration);
       }

@@ -2,10 +2,50 @@
 <html>
 <head>
     <title>Spatial N-Back Task</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <script src="https://unpkg.com/jspsych@8.2.1"></script>
     <script src="../src/index.js"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
     <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .jspsych-display-element {
+                font-size: 16px !important;
+            }
+            
+            /* Prevent zoom on input focus */
+            input, select, textarea, button {
+                font-size: 16px !important;
+            }
+            
+            /* Ensure content fits mobile screens */
+            body {
+                margin: 0;
+                padding: 0;
+                overflow-x: hidden;
+            }
+        }
+        
+        /* Prevent text selection and touch callouts */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Allow text selection for specific elements */
+        p, span, div.instructions {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+    </style>
 </head>
 <body></body>
 <script>
@@ -19,22 +59,22 @@ const jsPsych = initJsPsych({
     }
 });
 
-// Instructions trial
+// Instructions trial - Mobile responsive
 const instructions = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
-        <div style="text-align: center; font-size: 18px; line-height: 1.5;">
-            <h2>Spatial N-Back Task</h2>
-            <p>In this task, you will see a grid with blue squares appearing in different positions.</p>
-            <p>Your job is to click the MATCH button whenever the current position is the same as the position from <strong>2 trials ago</strong>.</p>
-            <p>Try to respond as quickly and accurately as possible.</p>
-            <p>Press any key to begin the task.</p>
+        <div style="text-align: center; font-size: clamp(16px, 4vw, 20px); line-height: 1.5; padding: 10px; max-width: 90vw; margin: 0 auto;">
+            <h2 style="font-size: clamp(20px, 5vw, 28px); margin-bottom: 20px;">Spatial N-Back Task</h2>
+            <p style="margin-bottom: 15px;">In this task, you will see a grid with blue squares appearing in different positions.</p>
+            <p style="margin-bottom: 15px;">Your job is to click the MATCH button whenever the current position is the same as the position from <strong>1 trial ago</strong>.</p>
+            <p style="margin-bottom: 15px;">Try to respond as quickly and accurately as possible.</p>
+            <p style="font-weight: bold; color: #2196F3;">Press any key or tap anywhere to begin the task.</p>
         </div>
     `,
     choices: "ALL_KEYS"
 };
 
-// Main N-back task
+// Main N-back task - Mobile optimized
 const nback_task = {
     type: jsPsychPluginSpatialNbackTask,
     rows: 3,
@@ -42,11 +82,18 @@ const nback_task = {
     n_back_level: 1,
     total_trials: 6,
     target_percentage: 25,
-    stimulus_duration: 750000000,
+    stimulus_duration: 750,
     isi_duration: 250,
     show_feedback: true,
     show_progress: true,
-    cell_size: 80
+    cell_size: 80,
+    instructions: "Click MATCH when the position matches the one from {n} trial(s) ago",
+    button_text: "MATCH",
+    stimulus_color: "#2196F3",
+    correct_color: "#4CAF50",
+    incorrect_color: "#F44336",
+    feedback_duration: 1000,
+    show_feedback_border: true
 };
 
 // Create timeline
