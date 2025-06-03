@@ -50,6 +50,7 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         type: jspsych.ParameterType.BOOL,
         default: true,
       },
+      /** Whether to show feedback when there is no response */
       showFeedbackNoResponse: {
         type: jspsych.ParameterType.BOOL,
         default: false,
@@ -466,7 +467,8 @@ var jsPsychPluginSpatialNbackTask = (function (jspsych) {
         button.disabled = true;
         button.style.opacity = '0.6';
 
-        //if no response and feedback for no response must not shown, match feedback speed and then proceed to next trial
+        //if there is no response and feedback must not be shown for no response,
+        // match feedback speed and then proceed to next trial
         // this makes the task's speed consistent, even if the participant does not respond
         if(response_time === null && !trial.showFeedbackNoResponse){
           setTimeout(() => {

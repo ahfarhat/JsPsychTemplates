@@ -62,6 +62,13 @@ const jsPsych = initJsPsych({
 // Instructions trial - Mobile responsive
 const instructions = {
     type: jsPsychHtmlKeyboardResponse,
+    response_ends_trial: true,
+    on_load: function() {
+        document.body.addEventListener('pointerdown', function endTrialOnClick() {
+            jsPsych.finishTrial();
+            document.body.removeEventListener('pointerdown', endTrialOnClick);
+        });
+    },
     stimulus: `
         <div style="text-align: center; font-size: clamp(16px, 4vw, 20px); line-height: 1.5; padding: 10px; max-width: 90vw; margin: 0 auto;">
             <h2 style="font-size: clamp(20px, 5vw, 28px); margin-bottom: 20px;">Spatial N-Back Task</h2>
@@ -84,16 +91,17 @@ const nback_task = {
     target_percentage: 25,
     stimulus_duration: 750,
     isi_duration: 250,
-    show_feedback: true,
-    show_progress: true,
+    feedback_duration: 1000, //only shown if feedback or feedback_border is enabled
+    show_feedback: false,
+    show_feedback_border: false,
+    progress_bar: true,
+    showFeedbackNoResponse: true,
     cell_size: 80,
     instructions: "Click MATCH when the position matches the one from {n} trial(s) ago",
     button_text: "MATCH",
     stimulus_color: "#2196F3",
     correct_color: "#4CAF50",
     incorrect_color: "#F44336",
-    feedback_duration: 1000,
-    show_feedback_border: true
 };
 
 // Create timeline
