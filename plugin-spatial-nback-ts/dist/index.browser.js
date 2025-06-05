@@ -17,7 +17,7 @@ var jsPsychPluginSpatialNbackTs = (function (jspsych) {
         type: jspsych.ParameterType.INT,
         default: 3
       },
-      /** Size of each cell in pixels */
+      /** Size of each cell in pixels, this will affect size of whole grid also */
       cell_size: {
         type: jspsych.ParameterType.INT,
         default: 100
@@ -48,13 +48,13 @@ var jsPsychPluginSpatialNbackTs = (function (jspsych) {
         type: jspsych.ParameterType.INT,
         default: 1e3
       },
-      /** Whether to show feedback after response */
-      show_feedback: {
-        type: jspsych.ParameterType.BOOL,
-        default: true
+      /** Duration of feedback display (ms) */
+      feedback_duration: {
+        type: jspsych.ParameterType.INT,
+        default: 500
       },
-      /** Whether to show feedback when there is no response */
-      showFeedbackNoResponse: {
+      /** Whether to show feedback "Incorrect! (231ms)" after response */
+      show_feedback_time: {
         type: jspsych.ParameterType.BOOL,
         default: true
       },
@@ -63,10 +63,10 @@ var jsPsychPluginSpatialNbackTs = (function (jspsych) {
         type: jspsych.ParameterType.BOOL,
         default: true
       },
-      /** Duration of feedback display (ms) */
-      feedback_duration: {
-        type: jspsych.ParameterType.INT,
-        default: 500
+      /** Whether to show feedback when there is no response */
+      showFeedbackNoResponse: {
+        type: jspsych.ParameterType.BOOL,
+        default: true
       },
       /** Whether to wait for feedback duration before ending trial when no response */
       /** if using feedback_duration as interstimulus response, keep this true */
@@ -286,7 +286,7 @@ var jsPsychPluginSpatialNbackTs = (function (jspsych) {
         showFeedback(is_correct, null, false);
       };
       const showFeedback = (is_correct, response_time, made_response) => {
-        if (!trial.show_feedback && !trial.show_feedback_border) {
+        if (!trial.show_feedback_time && !trial.show_feedback_border) {
           if (made_response && !stimulus_hidden) {
             const elapsed_time = performance.now() - trial_start_time;
             const remaining_stimulus_time = Math.max(0, trial.stimulus_duration - elapsed_time);
@@ -341,7 +341,7 @@ var jsPsychPluginSpatialNbackTs = (function (jspsych) {
         if (trial.show_feedback_border) {
           grid.style.border = `6px solid ${is_correct ? trial.correct_color : trial.incorrect_color}`;
         }
-        if (trial.show_feedback) {
+        if (trial.show_feedback_time) {
           let feedback_text = is_correct ? "Correct!" : "Incorrect!";
           if (response_time !== null) {
             feedback_text += ` (${Math.round(response_time)}ms)`;

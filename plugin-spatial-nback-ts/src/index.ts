@@ -16,7 +16,7 @@ const info = <const>{
         type: ParameterType.INT,
         default: 3,
       },
-      /** Size of each cell in pixels */
+      /** Size of each cell in pixels, this will affect size of whole grid also */
       cell_size: {
         type: ParameterType.INT,
         default: 100,
@@ -47,13 +47,13 @@ const info = <const>{
         type: ParameterType.INT,
         default: 1000,
       },
-      /** Whether to show feedback after response */
-      show_feedback: {
-        type: ParameterType.BOOL,
-        default: true,
+      /** Duration of feedback display (ms) */
+      feedback_duration: {
+        type: ParameterType.INT,
+        default: 500,
       },
-      /** Whether to show feedback when there is no response */
-      showFeedbackNoResponse: {
+      /** Whether to show feedback "Incorrect! (231ms)" after response */
+      show_feedback_time: {
         type: ParameterType.BOOL,
         default: true,
       },
@@ -62,10 +62,10 @@ const info = <const>{
         type: ParameterType.BOOL,
         default: true,
       },
-      /** Duration of feedback display (ms) */
-      feedback_duration: {
-        type: ParameterType.INT,
-        default: 500,
+      /** Whether to show feedback when there is no response */
+      showFeedbackNoResponse: {
+        type: ParameterType.BOOL,
+        default: true,
       },
       /** Whether to wait for feedback duration before ending trial when no response */
       /** if using feedback_duration as interstimulus response, keep this true */
@@ -136,6 +136,8 @@ type Info = typeof info;
  * Single trial spatial grid stimulus with response collection
  *
  * @author A. Hunter Farhat
+ * @version 1.0.0
+ * @see {@link https://github.com/farhat60/JsPsychTemplates/blob/main/plugin-spatial-nback-ts}
  */
 class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
   static info = info;
@@ -328,7 +330,7 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
 
     const showFeedback = (is_correct: boolean, response_time: number | null, made_response: boolean): void => {
       // If no feedback is shown, handle timing appropriately
-      if (!trial.show_feedback && !trial.show_feedback_border) {
+      if (!trial.show_feedback_time && !trial.show_feedback_border) {
         if (made_response && !stimulus_hidden) {
           // Response during stimulus - wait for stimulus + feedback duration, then ISI
           const elapsed_time = performance.now() - trial_start_time;
@@ -405,7 +407,7 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
       }
 
       // Show text feedback
-      if (trial.show_feedback) {
+      if (trial.show_feedback_time) {
         let feedback_text = is_correct ? 'Correct!' : 'Incorrect!';
         if (response_time !== null) {
           feedback_text += ` (${Math.round(response_time)}ms)`;

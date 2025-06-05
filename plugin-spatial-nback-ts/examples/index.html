@@ -73,6 +73,7 @@
     // Create timeline
     const nback_timeline = [];
 
+    // Add trials to the timeline
     for (let i = 0; i < total_trials; i++) {
       nback_timeline.push({
         type: jsPsychPluginSpatialNbackTs,
@@ -81,12 +82,13 @@
         stimulus_row: sequence.positions[i].row,
         stimulus_col: sequence.positions[i].col,
         is_target: sequence.is_target[i],
-        stimulus_duration: 1000,
-        isi_duration: 2000,
+        stimulus_duration: 750,
+        isi_duration: 1000,
         feedback_duration: 1000,
-        show_feedback: true,
+        show_feedback: false,
         show_feedback_border: true,
-        showFeedbackNoResponse: true,
+        showFeedbackNoResponse: false,
+        feedbackWaitNoResponse: false,
         cell_size: 150,
         instructions: `Click MATCH when the position matches the one from ${n_back_level} trial(s) ago (Trial ${i + 1} of ${total_trials})`,
         button_text: "MATCH",
@@ -96,7 +98,7 @@
       });
     }
 
-
+    // Create instructions for the task
     const instructions = {
     type: jsPsychHtmlKeyboardResponse,
     response_ends_trial: true,

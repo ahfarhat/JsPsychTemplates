@@ -14,7 +14,7 @@ declare const info: {
             readonly type: ParameterType.INT;
             readonly default: 3;
         };
-        /** Size of each cell in pixels */
+        /** Size of each cell in pixels, this will affect size of whole grid also */
         readonly cell_size: {
             readonly type: ParameterType.INT;
             readonly default: 100;
@@ -44,13 +44,13 @@ declare const info: {
             readonly type: ParameterType.INT;
             readonly default: 1000;
         };
-        /** Whether to show feedback after response */
-        readonly show_feedback: {
-            readonly type: ParameterType.BOOL;
-            readonly default: true;
+        /** Duration of feedback display (ms) */
+        readonly feedback_duration: {
+            readonly type: ParameterType.INT;
+            readonly default: 500;
         };
-        /** Whether to show feedback when there is no response */
-        readonly showFeedbackNoResponse: {
+        /** Whether to show feedback "Incorrect! (231ms)" after response */
+        readonly show_feedback_time: {
             readonly type: ParameterType.BOOL;
             readonly default: true;
         };
@@ -59,10 +59,10 @@ declare const info: {
             readonly type: ParameterType.BOOL;
             readonly default: true;
         };
-        /** Duration of feedback display (ms) */
-        readonly feedback_duration: {
-            readonly type: ParameterType.INT;
-            readonly default: 500;
+        /** Whether to show feedback when there is no response */
+        readonly showFeedbackNoResponse: {
+            readonly type: ParameterType.BOOL;
+            readonly default: true;
         };
         /** Whether to wait for feedback duration before ending trial when no response */
         /** if using feedback_duration as interstimulus response, keep this true */
@@ -131,6 +131,8 @@ type Info = typeof info;
  * Single trial spatial grid stimulus with response collection
  *
  * @author A. Hunter Farhat
+ * @version 1.0.0
+ * @see {@link https://github.com/farhat60/JsPsychTemplates/blob/main/plugin-spatial-nback-ts}
  */
 declare class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
     private jsPsych;
@@ -148,7 +150,7 @@ declare class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
                 readonly type: ParameterType.INT;
                 readonly default: 3;
             };
-            /** Size of each cell in pixels */
+            /** Size of each cell in pixels, this will affect size of whole grid also */
             readonly cell_size: {
                 readonly type: ParameterType.INT;
                 readonly default: 100;
@@ -178,13 +180,13 @@ declare class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
                 readonly type: ParameterType.INT;
                 readonly default: 1000;
             };
-            /** Whether to show feedback after response */
-            readonly show_feedback: {
-                readonly type: ParameterType.BOOL;
-                readonly default: true;
+            /** Duration of feedback display (ms) */
+            readonly feedback_duration: {
+                readonly type: ParameterType.INT;
+                readonly default: 500;
             };
-            /** Whether to show feedback when there is no response */
-            readonly showFeedbackNoResponse: {
+            /** Whether to show feedback "Incorrect! (231ms)" after response */
+            readonly show_feedback_time: {
                 readonly type: ParameterType.BOOL;
                 readonly default: true;
             };
@@ -193,10 +195,10 @@ declare class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
                 readonly type: ParameterType.BOOL;
                 readonly default: true;
             };
-            /** Duration of feedback display (ms) */
-            readonly feedback_duration: {
-                readonly type: ParameterType.INT;
-                readonly default: 500;
+            /** Whether to show feedback when there is no response */
+            readonly showFeedbackNoResponse: {
+                readonly type: ParameterType.BOOL;
+                readonly default: true;
             };
             /** Whether to wait for feedback duration before ending trial when no response */
             /** if using feedback_duration as interstimulus response, keep this true */
