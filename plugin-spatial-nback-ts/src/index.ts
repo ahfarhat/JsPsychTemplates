@@ -148,6 +148,7 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
     let response_given = false;
     let stimulus_timeout: number;
     let isi_timeout: number;
+    let stimulus_hidden = false; // Track if stimulus has been hidden
 
     // Generate random position if not specified
     const stimulus_row = trial.stimulus_row ?? Math.floor(Math.random() * trial.rows);
@@ -217,14 +218,27 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
       }
       html += '</div>';
 
-      // Button container (jsPsych will inject the button here)
+      // Response button
       html += `<div id="nback-button-container" style="
         position: absolute;
         bottom: 15vh;
         left: 50%;
         transform: translateX(-50%);
         z-index: 10;
-      "></div>`;
+      ">`;
+      html += `<button id="nback-response-btn" style="
+        font-size: clamp(18px, 3vmin, 26px);
+        padding: clamp(18px, 2.5vmin, 30px) clamp(35px, 5vmin, 60px);
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: all 0.2s;
+      " disabled>${trial.button_text}</button>`;
+      html += '</div>';
       
       // Feedback area
       html += `<div id="nback-feedback" style="
@@ -244,47 +258,19 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
       
       display_element.innerHTML = html;
 
-      // Create jsPsych button using the official API
-      const button_container = document.getElementById('nback-button-container') as HTMLElement;
-      
-      // Create button element using jsPsych's built-in method
-      const button = this.jsPsych.pluginAPI.createButtonElement(trial.button_text);
-      
-      // Add custom styling to match your design while keeping jsPsych structure
-      button.style.cssText = `
-        font-size: clamp(18px, 3vmin, 26px);
-        padding: clamp(18px, 2.5vmin, 30px) clamp(35px, 5vmin, 60px);
-        background-color: #2196F3;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: bold;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        transition: all 0.2s;
-      `;
-      
-      button.disabled = true;
-      button.id = 'nback-response-btn';
-      
-      // Add hover effects
+      // Add button hover effects and event listener
+      const button = document.getElementById('nback-response-btn') as HTMLButtonElement;
       button.addEventListener('mouseenter', () => {
         if (!button.disabled) {
           button.style.backgroundColor = '#1976D2';
           button.style.transform = 'translateY(-2px)';
         }
       });
-      
       button.addEventListener('mouseleave', () => {
         button.style.backgroundColor = '#2196F3';
         button.style.transform = 'translateY(0)';
       });
-      
-      // Add click event listener
       button.addEventListener('click', handleResponse);
-      
-      // Append button to container
-      button_container.appendChild(button);
     };
 
     const startTrial = (): void => {
@@ -295,12 +281,15 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
       // Enable response
       response_allowed = true;
       trial_start_time = performance.now();
+      stimulus_hidden = false;
+      
       const responseButton = document.getElementById('nback-response-btn') as HTMLButtonElement;
       responseButton.disabled = false;
 
       // Set timeout to hide stimulus
       stimulus_timeout = window.setTimeout(() => {
         cell.style.backgroundColor = 'white';
+        stimulus_hidden = true;
         
         // Set timeout for ISI
         isi_timeout = window.setTimeout(() => {
@@ -322,9 +311,8 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
       // Clear timeouts
       clearTimeout(stimulus_timeout);
       clearTimeout(isi_timeout);
-      
 
-      // Show feedback
+      // Show feedback with appropriate timing
       showFeedback(is_correct, response_time, true);
     };
 
@@ -339,28 +327,82 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
     };
 
     const showFeedback = (is_correct: boolean, response_time: number | null, made_response: boolean): void => {
-      // If no feedback is shown, just end trial
+      // If no feedback is shown, handle timing appropriately
       if (!trial.show_feedback && !trial.show_feedback_border) {
-        return endTrial(is_correct, response_time, made_response);
+        if (made_response && !stimulus_hidden) {
+          // Response during stimulus - wait for stimulus + feedback duration, then ISI
+          const elapsed_time = performance.now() - trial_start_time;
+          const remaining_stimulus_time = Math.max(0, trial.stimulus_duration - elapsed_time);
+          const feedback_wait_time = remaining_stimulus_time + trial.feedback_duration;
+          
+          setTimeout(() => {
+            // Hide stimulus after the combined time
+            const cell = document.getElementById(`cell-${stimulus_row}-${stimulus_col}`) as HTMLElement;
+            cell.style.backgroundColor = 'white';
+            
+            // Wait for ISI duration before ending trial
+            setTimeout(() => {
+              endTrial(is_correct, response_time, made_response);
+            }, trial.isi_duration);
+          }, feedback_wait_time);
+        } else {
+          // Response during ISI or no response - end immediately
+          endTrial(is_correct, response_time, made_response);
+        }
+        return;
       }
 
-      // Disable the button during feedback using jsPsych method
+      // Disable the button during feedback
       const button = document.getElementById('nback-response-btn') as HTMLButtonElement;
-      this.jsPsych.pluginAPI.enableButton(button, false);
+      button.disabled = true;
       button.style.opacity = '0.6';
 
-      // If there is no response and feedback must not be shown for no response,
-      // match feedback speed and then end trial
-      if (response_time === null && !trial.showFeedbackNoResponse && trial.feedbackWaitNoResponse) {
-        setTimeout(() => {
+      // Calculate feedback duration based on when response occurred
+      let feedback_duration: number;
+      
+      if (made_response && !stimulus_hidden) {
+        // Response during stimulus - show feedback for stimulus + feedback duration
+        const elapsed_time = performance.now() - trial_start_time;
+        const remaining_stimulus_time = Math.max(0, trial.stimulus_duration - elapsed_time);
+        feedback_duration = remaining_stimulus_time + trial.feedback_duration;
+      } else if (made_response && stimulus_hidden) {
+        // Response during ISI - show feedback for remaining ISI + feedback duration
+        const elapsed_time = performance.now() - trial_start_time;
+        const isi_start_time = trial.stimulus_duration;
+        const elapsed_isi_time = elapsed_time - isi_start_time;
+        const remaining_isi_time = Math.max(0, trial.isi_duration - elapsed_isi_time);
+        feedback_duration = remaining_isi_time + trial.feedback_duration;
+      } else {
+        // No response - use standard feedback duration if configured
+        if (trial.feedbackWaitNoResponse) {
+          feedback_duration = trial.feedback_duration;
+        } else {
           endTrial(is_correct, response_time, made_response);
-        }, trial.feedback_duration);
+          return;
+        }
+      }
+
+      // If there is no response and feedback must not be shown for no response
+      if (response_time === null && !trial.showFeedbackNoResponse) {
+        if (trial.feedbackWaitNoResponse) {
+          setTimeout(() => {
+            endTrial(is_correct, response_time, made_response);
+          }, feedback_duration);
+        } else {
+          endTrial(is_correct, response_time, made_response);
+        }
         return;
       }
       
       // Initialize feedback elements
       const grid = document.getElementById('nback-grid') as HTMLElement;
       const feedback_div = document.getElementById('nback-feedback') as HTMLElement;
+
+      // // Hide stimulus if still showing
+      // if (!stimulus_hidden) {
+      //   const cell = document.getElementById(`cell-${stimulus_row}-${stimulus_col}`) as HTMLElement;
+      //   cell.style.backgroundColor = 'white';
+      // }
 
       // Show border feedback
       if (trial.show_feedback_border) {
@@ -377,10 +419,29 @@ class SpatialNbackTsPlugin implements JsPsychPlugin<Info> {
         feedback_div.style.color = is_correct ? trial.correct_color : trial.incorrect_color;
       }
 
-      // Wait for feedback duration before ending trial
-      setTimeout(() => {
-        endTrial(is_correct, response_time, made_response);
-      }, trial.feedback_duration);
+      // Handle the timing based on when response occurred
+      if (made_response && !stimulus_hidden) {
+        // Response during stimulus - show feedback, then ISI
+        setTimeout(() => {
+          // Clear feedback
+          if (trial.show_feedback_border) {
+            grid.style.border = '2px solid #000';
+          }
+          if (trial.show_feedback) {
+            feedback_div.textContent = '';
+          }
+          
+          // Wait for ISI duration before ending trial
+          setTimeout(() => {
+            endTrial(is_correct, response_time, made_response);
+          }, trial.isi_duration);
+        }, feedback_duration);
+      } else {
+        // Response during ISI or no response - just wait for feedback duration
+        setTimeout(() => {
+          endTrial(is_correct, response_time, made_response);
+        }, feedback_duration);
+      }
     };
 
     const endTrial = (is_correct: boolean, response_time: number | null, made_response: boolean): void => {
