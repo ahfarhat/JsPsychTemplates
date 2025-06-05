@@ -307,20 +307,20 @@ class SpatialNbackTsPlugin {
       const button = document.getElementById("nback-response-btn");
       button.disabled = true;
       button.style.opacity = "0.6";
-      let feedback_duration;
+      let total_feedback_duration;
       if (made_response && !stimulus_hidden) {
         const elapsed_time = performance.now() - trial_start_time;
         const remaining_stimulus_time = Math.max(0, trial.stimulus_duration - elapsed_time);
-        feedback_duration = remaining_stimulus_time + trial.feedback_duration;
+        total_feedback_duration = remaining_stimulus_time + trial.feedback_duration;
       } else if (made_response && stimulus_hidden) {
         const elapsed_time = performance.now() - trial_start_time;
         const isi_start_time = trial.stimulus_duration;
         const elapsed_isi_time = elapsed_time - isi_start_time;
         const remaining_isi_time = Math.max(0, trial.isi_duration - elapsed_isi_time);
-        feedback_duration = remaining_isi_time + trial.feedback_duration;
+        total_feedback_duration = remaining_isi_time + trial.feedback_duration;
       } else {
         if (trial.feedbackWaitNoResponse) {
-          feedback_duration = trial.feedback_duration;
+          total_feedback_duration = trial.feedback_duration;
         } else {
           endTrial(is_correct, response_time, made_response);
           return;
@@ -330,7 +330,7 @@ class SpatialNbackTsPlugin {
         if (trial.feedbackWaitNoResponse) {
           setTimeout(() => {
             endTrial(is_correct, response_time, made_response);
-          }, feedback_duration);
+          }, total_feedback_duration);
         } else {
           endTrial(is_correct, response_time, made_response);
         }
@@ -338,6 +338,7 @@ class SpatialNbackTsPlugin {
       }
       const grid = document.getElementById("nback-grid");
       const feedback_div = document.getElementById("nback-feedback");
+      const stimulus_cell = document.getElementById(`cell-${stimulus_row}-${stimulus_col}`);
       if (trial.show_feedback_border) {
         grid.style.border = `6px solid ${is_correct ? trial.correct_color : trial.incorrect_color}`;
       }
@@ -350,21 +351,26 @@ class SpatialNbackTsPlugin {
         feedback_div.style.color = is_correct ? trial.correct_color : trial.incorrect_color;
       }
       if (made_response && !stimulus_hidden) {
+        const elapsed_time = performance.now() - trial_start_time;
+        const remaining_stimulus_time = Math.max(0, trial.stimulus_duration - elapsed_time);
         setTimeout(() => {
-          if (trial.show_feedback_border) {
-            grid.style.border = "2px solid #000";
-          }
-          if (trial.show_feedback) {
-            feedback_div.textContent = "";
-          }
+          stimulus_cell.style.backgroundColor = "white";
           setTimeout(() => {
             endTrial(is_correct, response_time, made_response);
-          }, trial.isi_duration);
-        }, feedback_duration);
+          }, trial.feedback_duration + trial.isi_duration);
+        }, remaining_stimulus_time);
+      } else if (made_response && stimulus_hidden) {
+        const elapsed_time = performance.now() - trial_start_time;
+        const isi_start_time = trial.stimulus_duration;
+        const elapsed_isi_time = elapsed_time - isi_start_time;
+        const remaining_isi_time = Math.max(0, trial.isi_duration - elapsed_isi_time);
+        setTimeout(() => {
+          endTrial(is_correct, response_time, made_response);
+        }, remaining_isi_time + trial.feedback_duration);
       } else {
         setTimeout(() => {
           endTrial(is_correct, response_time, made_response);
-        }, feedback_duration);
+        }, total_feedback_duration);
       }
     };
     const endTrial = (is_correct, response_time, made_response) => {
