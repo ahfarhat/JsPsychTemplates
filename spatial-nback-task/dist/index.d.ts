@@ -1,11 +1,10 @@
-import jsPsychHtmlKeyboardResponse from '@jspsych/plugin-html-keyboard-response';
+import jsPsychHtmlButtonResponse from '@jspsych/plugin-html-button-response';
 
 declare const task_instructions: {
-    type: typeof jsPsychHtmlKeyboardResponse;
-    response_ends_trial: boolean;
-    on_load: () => void;
+    type: typeof jsPsychHtmlButtonResponse;
     stimulus: string;
-    choices: string;
+    choices: string[];
+    button_html: string;
 };
 declare function generateNBackSequence(total_trials: number, n_back_level: number, target_percentage: number, rows: number, cols: number): {
     positions: {
@@ -44,10 +43,9 @@ declare function createSpatialNBackTimeline({ rows, cols, n_back_level, total_tr
         randomize_order: boolean;
     } | {
         stimulus: string;
-        type: typeof jsPsychHtmlKeyboardResponse;
-        response_ends_trial: boolean;
-        on_load: () => void;
-        choices: string;
+        type: typeof jsPsychHtmlButtonResponse;
+        choices: string[];
+        button_html: string;
     })[];
 };
 declare function createPracticeTimeline(options?: Parameters<typeof createSpatialNBackTimeline>[0]): {
@@ -59,10 +57,9 @@ declare function createPracticeTimeline(options?: Parameters<typeof createSpatia
         randomize_order: boolean;
     } | {
         stimulus: string;
-        type: typeof jsPsychHtmlKeyboardResponse;
-        response_ends_trial: boolean;
-        on_load: () => void;
-        choices: string;
+        type: typeof jsPsychHtmlButtonResponse;
+        choices: string[];
+        button_html: string;
     })[];
 };
 declare function createMultiLevelNBackTimeline({ n_back_levels, trials_per_level, randomize_levels, ...sharedOptions }?: {
@@ -79,10 +76,9 @@ declare function createMultiLevelNBackTimeline({ n_back_levels, trials_per_level
             randomize_order: boolean;
         } | {
             stimulus: string;
-            type: typeof jsPsychHtmlKeyboardResponse;
-            response_ends_trial: boolean;
-            on_load: () => void;
-            choices: string;
+            type: typeof jsPsychHtmlButtonResponse;
+            choices: string[];
+            button_html: string;
         })[];
     })[];
     randomize_order: boolean;
@@ -97,10 +93,9 @@ declare const presetConfigurations: {
             randomize_order: boolean;
         } | {
             stimulus: string;
-            type: typeof jsPsychHtmlKeyboardResponse;
-            response_ends_trial: boolean;
-            on_load: () => void;
-            choices: string;
+            type: typeof jsPsychHtmlButtonResponse;
+            choices: string[];
+            button_html: string;
         })[];
     };
     medium: () => {
@@ -112,10 +107,9 @@ declare const presetConfigurations: {
             randomize_order: boolean;
         } | {
             stimulus: string;
-            type: typeof jsPsychHtmlKeyboardResponse;
-            response_ends_trial: boolean;
-            on_load: () => void;
-            choices: string;
+            type: typeof jsPsychHtmlButtonResponse;
+            choices: string[];
+            button_html: string;
         })[];
     };
     hard: () => {
@@ -127,10 +121,9 @@ declare const presetConfigurations: {
             randomize_order: boolean;
         } | {
             stimulus: string;
-            type: typeof jsPsychHtmlKeyboardResponse;
-            response_ends_trial: boolean;
-            on_load: () => void;
-            choices: string;
+            type: typeof jsPsychHtmlButtonResponse;
+            choices: string[];
+            button_html: string;
         })[];
     };
     research: () => {
@@ -143,10 +136,9 @@ declare const presetConfigurations: {
                 randomize_order: boolean;
             } | {
                 stimulus: string;
-                type: typeof jsPsychHtmlKeyboardResponse;
-                response_ends_trial: boolean;
-                on_load: () => void;
-                choices: string;
+                type: typeof jsPsychHtmlButtonResponse;
+                choices: string[];
+                button_html: string;
             })[];
         })[];
         randomize_order: boolean;
@@ -169,10 +161,9 @@ declare const utils: {
                 randomize_order: boolean;
             } | {
                 stimulus: string;
-                type: typeof jsPsychHtmlKeyboardResponse;
-                response_ends_trial: boolean;
-                on_load: () => void;
-                choices: string;
+                type: typeof jsPsychHtmlButtonResponse;
+                choices: string[];
+                button_html: string;
             })[];
         };
         medium: () => {
@@ -184,10 +175,9 @@ declare const utils: {
                 randomize_order: boolean;
             } | {
                 stimulus: string;
-                type: typeof jsPsychHtmlKeyboardResponse;
-                response_ends_trial: boolean;
-                on_load: () => void;
-                choices: string;
+                type: typeof jsPsychHtmlButtonResponse;
+                choices: string[];
+                button_html: string;
             })[];
         };
         hard: () => {
@@ -199,10 +189,9 @@ declare const utils: {
                 randomize_order: boolean;
             } | {
                 stimulus: string;
-                type: typeof jsPsychHtmlKeyboardResponse;
-                response_ends_trial: boolean;
-                on_load: () => void;
-                choices: string;
+                type: typeof jsPsychHtmlButtonResponse;
+                choices: string[];
+                button_html: string;
             })[];
         };
         research: () => {
@@ -215,10 +204,9 @@ declare const utils: {
                     randomize_order: boolean;
                 } | {
                     stimulus: string;
-                    type: typeof jsPsychHtmlKeyboardResponse;
-                    response_ends_trial: boolean;
-                    on_load: () => void;
-                    choices: string;
+                    type: typeof jsPsychHtmlButtonResponse;
+                    choices: string[];
+                    button_html: string;
                 })[];
             })[];
             randomize_order: boolean;
@@ -226,11 +214,10 @@ declare const utils: {
     };
     generateNBackSequence: typeof generateNBackSequence;
     task_instructions: {
-        type: typeof jsPsychHtmlKeyboardResponse;
-        response_ends_trial: boolean;
-        on_load: () => void;
+        type: typeof jsPsychHtmlButtonResponse;
         stimulus: string;
-        choices: string;
+        choices: string[];
+        button_html: string;
     };
 };
 

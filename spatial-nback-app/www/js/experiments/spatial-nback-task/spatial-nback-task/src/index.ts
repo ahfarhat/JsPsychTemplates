@@ -1,5 +1,6 @@
 import { initJsPsych, JsPsych } from "jspsych"
 import jsPsychPluginSpatialNbackTs from "@jspsych/plugin-spatial-nback-ts";
+import jsPsychHtmlKeyboardResponse from "@jspsych/plugin-html-keyboard-response";
 import jsPsychHtmlButtonResponse from "@jspsych/plugin-html-button-response";
 
 const task_instructions = {
@@ -13,8 +14,7 @@ const task_instructions = {
             <p style="font-weight: bold; color: #2196F3;">Click the button below to begin the task.</p>
         </div>
     `,
-    choices: ['Begin Task'],
-    button_html: '<button class="jspsych-btn" style="font-size: 18px; padding: 12px 24px; margin-top: 20px;">%choice%</button>'
+    choices: ['Continue'],
 };
 
 // Generate stimulus sequence for n-back task

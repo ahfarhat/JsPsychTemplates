@@ -3,7 +3,8 @@
 // List of experiments to load
 const EXPERIMENTS = [
     'profile',
-    'sample-experiment'
+    'sample-experiment',
+    'spatial-nback-task',
 ];
 
 // Function to setup notifications
